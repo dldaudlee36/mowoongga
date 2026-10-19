@@ -57,7 +57,59 @@ export function createStudentView() {
 
       return root;
     },
-    renderDecision() { return '학생 구현 대기: 서버의 판정과 이유를 연결하세요.'; },
+    renderDecision({ status, mode, data, error, appId } = {}) {
+      const root = document.createElement('section');
+
+      const addLine = (text) => {
+        const line = document.createElement('p');
+        line.textContent = text;
+        root.appendChild(line);
+      };
+
+      if (status === 'idle') {
+        addLine('앱을 골라 접속을 요청하세요');
+      } else if (status === 'loading') {
+        addLine('판정 확인 중...');
+      } else if (status === 'error') {
+        addLine(`요청 실패: ${error?.message || '확인 불가'} (요청/네트워크 실패이며, 서버의 접근 거부(deny) 판정이 아닙니다.)`);
+      } else if (status === 'ok') {
+        let decisionLabel;
+        switch (data?.decision) {
+          case 'allow':
+            decisionLabel = '허용 (allow)';
+            break;
+          case 'deny':
+            decisionLabel = '거부 (deny)';
+            break;
+          case 'challenge':
+            decisionLabel = '추가 확인 필요 (challenge)';
+            break;
+          default:
+            decisionLabel = '확인 불가 (unknown) — 허용되지 않음 / 판정 불명';
+        }
+
+        addLine(`판정: ${decisionLabel}`);
+        if (data?.decision === 'challenge') {
+          addLine('앱이 추가 확인 절차를 대신하지 않습니다.');
+        }
+        addLine(`이유: ${data?.reason ?? '확인 불가'}`);
+        addLine(`확인 시각: ${data?.checkedAt ?? '확인 불가'}`);
+        addLine(`앱 식별자: ${data?.appId ?? appId ?? '확인 불가'}`);
+      } else {
+        addLine('판정 확인 불가');
+      }
+
+      const modeLabel = mode === 'demo'
+        ? '예제 자료'
+        : mode === 'disconnected'
+          ? '연결 없음'
+          : mode === 'unknown'
+            ? '확인 불가'
+            : null;
+      if (modeLabel) addLine(`동작 모드: ${modeLabel}`);
+
+      return root;
+    },
     renderEvents() { return '학생 구현 대기: 본인 접속·XDR 기록을 연결하세요.'; },
     renderStatus() { return '학생 구현 대기: 기기·세션·알림과 연결 점검 상태를 구분하세요.'; },
     renderVulnerabilities() { return '학생 구현 대기: 정확한 설치 버전·OSV 출처·조회 시각·부분 결과·조회 실패를 구분하세요.'; },
