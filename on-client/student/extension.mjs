@@ -2,7 +2,59 @@
 // 제공 UI를 받은 것만으로 단계 완료를 인정하지 않습니다.
 export function createStudentView() {
   return {
-    renderIdentity() { return '학생 구현 대기: 실제 로그인·기기·세션 정보를 연결하세요.'; },
+    renderIdentity({ me, devices, sessions } = {}) {
+      const root = document.createElement('section');
+
+      const addLine = (text) => {
+        const line = document.createElement('p');
+        line.textContent = text;
+        root.appendChild(line);
+      };
+
+      const modeLabels = {
+        demo: '예제 자료',
+        disconnected: '연결 없음',
+        unknown: '확인 불가',
+      };
+      const addMode = (label, result) => {
+        const modeLabel = modeLabels[result?.mode];
+        if (modeLabel) addLine(`${label} 동작 모드: ${modeLabel}`);
+      };
+
+      if (me?.status === 'loading') {
+        addLine('불러오는 중');
+      } else if (me?.status === 'error') {
+        addLine(`연결 실패: ${me.error?.message || '확인 불가'}`);
+      } else if (me?.status === 'ok') {
+        const deviceStatusLabels = {
+          compliant: '정상',
+          noncompliant: '점검 필요',
+          unknown: '확인 불가',
+        };
+        const sessionStatusLabels = {
+          active: '사용 중',
+          expired: '만료',
+          revoked: '취소',
+          unknown: '확인 불가',
+        };
+        const userLabel = me.data?.user?.label ?? '확인 불가';
+        const device = me.data?.device;
+        const session = me.data?.session;
+
+        addLine(`사용자: ${userLabel}`);
+        addLine(`기기: ${device?.label ?? '확인 불가'}`);
+        addLine(`기기 상태: ${deviceStatusLabels[device?.status] ?? '확인 불가'}`);
+        addLine(`세션 상태: ${sessionStatusLabels[session?.status] ?? '확인 불가'}`);
+      } else {
+        addLine('확인 불가');
+      }
+
+      addMode('사용자 정보', me);
+      addMode('기기 정보', devices);
+      addMode('세션 정보', sessions);
+
+      return root;
+    },
     renderDecision() { return '학생 구현 대기: 서버의 판정과 이유를 연결하세요.'; },
     renderEvents() { return '학생 구현 대기: 본인 접속·XDR 기록을 연결하세요.'; },
     renderStatus() { return '학생 구현 대기: 기기·세션·알림과 연결 점검 상태를 구분하세요.'; },
