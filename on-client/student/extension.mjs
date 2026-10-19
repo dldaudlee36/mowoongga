@@ -40,11 +40,13 @@ export function createStudentView() {
         const userLabel = me.data?.user?.label ?? '확인 불가';
         const device = me.data?.device;
         const session = me.data?.session;
+        const deviceStatusCode = device?.status ?? 'unknown';
+        const sessionStatusCode = session?.status ?? 'unknown';
 
         addLine(`사용자: ${userLabel}`);
         addLine(`기기: ${device?.label ?? '확인 불가'}`);
-        addLine(`기기 상태: ${deviceStatusLabels[device?.status] ?? '확인 불가'}`);
-        addLine(`세션 상태: ${sessionStatusLabels[session?.status] ?? '확인 불가'}`);
+        addLine(`기기 상태: ${deviceStatusLabels[deviceStatusCode] ?? '확인 불가'} (${deviceStatusCode})`);
+        addLine(`세션 상태: ${sessionStatusLabels[sessionStatusCode] ?? '확인 불가'} (${sessionStatusCode})`);
       } else {
         addLine('확인 불가');
       }
