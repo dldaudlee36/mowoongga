@@ -450,6 +450,8 @@ export function createStudentView() {
           ['버전', diagnosticData.version],
           ['확인 시각', diagnosticData.checkedAt],
           ['엔진 모드', diagnosticData.engine?.mode],
+          ['구성요소', diagnosticData.component],
+          ['엔진 코드', diagnosticData.engine?.code],
         ];
         const safeDiagnosticText = diagnosticFields
           .map(([label, value]) => `${label}: ${displayValue(value)}`)
