@@ -551,6 +551,8 @@ export function createStudentView() {
         WB_CLCO_RATE_LIMITED: '요청 제한: 잠시 후 직접 다시 시도하세요.',
         WB_CLCO_TIMEOUT: '시간 초과: AI 요청 시간이 초과되었습니다. 잠시 후 직접 다시 점검하세요.',
         REQUEST_TIMEOUT: '시간 초과: AI 요청 시간이 초과되었습니다. 잠시 후 직접 다시 점검하세요.',
+        AI_REQUEST_UNVERIFIED: '네트워크 오류: AI 연결 또는 서버 응답을 확인하지 못했습니다. 네트워크 상태를 확인한 뒤 잠시 후 직접 다시 점검하세요.',
+        NETWORK_ERROR: '네트워크 오류: AI 서버 연결을 확인한 뒤 직접 다시 점검하세요.',
         WB_CLCO_NETWORK_ERROR: '네트워크 오류: AI 서버 연결을 확인한 뒤 직접 다시 점검하세요.',
         WB_CLCO_SERVER_UNAVAILABLE: '네트워크 오류: AI 서버 연결을 확인한 뒤 직접 다시 점검하세요.',
         WB_CLCO_CANCELLED: '점검 취소됨: AI 연결 점검이 취소되었습니다. 이전 결과는 현재 결과가 아닙니다.',
