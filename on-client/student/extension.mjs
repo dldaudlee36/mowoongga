@@ -230,6 +230,11 @@ export function createStudentView() {
               return kindMatches && appMatches && accessMatches;
             });
 
+            if (visibleEvents.length === 0) {
+              addLine(list, '선택한 조건에 맞는 기록이 없습니다');
+              return;
+            }
+
             for (const event of visibleEvents) {
               const eventId = String(event?.id ?? '확인 불가');
               const row = document.createElement('div');
@@ -351,6 +356,12 @@ export function createStudentView() {
         return `${label} (${code})`;
       };
       const retryInstruction = '다시 시도는 위쪽 다시 불러오기 버튼을 직접 누르세요. 자동으로 다시 요청하지 않습니다.';
+      const hasTimedOut = (result) => ['TIMEOUT', 'REQUEST_TIMEOUT', 'ENGINE_TIMEOUT'].includes(result?.error?.code)
+        || /timeout|timed out|시간(?:이 )?초과/i.test(String(result?.error?.message ?? ''));
+      const timeoutNote = (result) => hasTimedOut(result)
+        && !/시간(?:이 )?초과/i.test(String(result?.error?.message ?? ''))
+        ? ' (시간 초과)'
+        : '';
       const renderCollection = ({ result, heading, key, itemLabel, emptyMessage, errorPrefix, idKey, stateGroup }) => {
         const container = document.createElement('div');
         addHeading(container, heading);
@@ -359,9 +370,7 @@ export function createStudentView() {
           addLine(container, '불러오는 중...');
         } else if (result?.status === 'error') {
           const errorMessage = result.error?.message || '확인 불가';
-          const timedOut = /timeout|timed out|시간 초과/i.test(String(errorMessage));
-          const timeoutNote = timedOut && !/시간 초과/i.test(String(errorMessage)) ? ' (시간 초과)' : '';
-          addLine(container, `${errorPrefix}: ${errorMessage}${timeoutNote}`);
+          addLine(container, `${errorPrefix}: ${errorMessage}${timeoutNote(result)}`);
           addLine(container, retryInstruction);
         } else if (result?.status === 'ok') {
           const items = getItems(result, key);
@@ -402,9 +411,7 @@ export function createStudentView() {
         addLine(sessionContainer, '불러오는 중...');
       } else if (sessions?.status === 'error') {
         const errorMessage = sessions.error?.message || '확인 불가';
-        const timedOut = /timeout|timed out|시간 초과/i.test(String(errorMessage));
-        const timeoutNote = timedOut && !/시간 초과/i.test(String(errorMessage)) ? ' (시간 초과)' : '';
-        addLine(sessionContainer, `세션 정보를 불러오지 못했습니다: ${errorMessage}${timeoutNote}`);
+        addLine(sessionContainer, `세션 정보를 불러오지 못했습니다: ${errorMessage}${timeoutNote(sessions)}`);
         addLine(sessionContainer, retryInstruction);
       } else if (sessions?.status === 'ok') {
         const sessionItems = getItems(sessions, 'sessions');
@@ -453,24 +460,38 @@ export function createStudentView() {
           ['구성요소', diagnosticData.component],
           ['엔진 코드', diagnosticData.engine?.code],
         ];
-        const safeDiagnosticText = diagnosticFields
-          .map(([label, value]) => `${label}: ${displayValue(value)}`)
-          .join('\n');
-        for (const [label, value] of diagnosticFields) {
-          addLine(diagnosticsContainer, `${label}: ${displayValue(value)}`);
+        const safeDiagnosticValue = (value) => {
+          if (!['string', 'number', 'boolean'].includes(typeof value)) return '확인 불가';
+          const text = String(value);
+          const looksSensitive = /(?:bearer\s+\S+|sk-(?:on-|proj-|ant-)?[A-Za-z0-9_-]{8,}|-----BEGIN [A-Z ]*(?:PRIVATE KEY|CERTIFICATE)-----|(?:api[_ -]?key|authorization|password|token|secret|credential|비밀번호|토큰|열쇠)\s*[:=]\s*\S+|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})/i;
+          if (text.length > 200 || /[\u0000-\u001f\u007f]/.test(text) || looksSensitive.test(text)) return '확인 불가';
+          return text;
+        };
+        const safeFields = diagnosticFields.map(([label, value]) => [label, safeDiagnosticValue(value)]);
+        const safeDiagnosticText = safeFields.map(([label, value]) => `${label}: ${value}`).join('\n');
+        for (const [label, value] of safeFields) {
+          addLine(diagnosticsContainer, `${label}: ${value}`);
         }
         addLine(diagnosticsContainer, '도움 요청에 쓰도록 복사하는 정보입니다');
+        const copyStatus = document.createElement('p');
+        copyStatus.setAttribute('role', 'status');
+        copyStatus.setAttribute('aria-live', 'polite');
+        diagnosticsContainer.appendChild(copyStatus);
         const copyButton = document.createElement('button');
         copyButton.setAttribute('type', 'button');
         copyButton.setAttribute('aria-label', '도움정보 복사');
         copyButton.textContent = '도움정보 복사';
-        copyButton.addEventListener('click', () => {
-          if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-            try {
-              Promise.resolve(navigator.clipboard.writeText(safeDiagnosticText)).catch(() => {});
-            } catch {
-              // 클립보드에 접근할 수 없는 경우에도 화면 동작을 중단하지 않습니다.
-            }
+        copyButton.addEventListener('click', async () => {
+          copyButton.disabled = true;
+          copyStatus.textContent = '도움정보를 복사하는 중...';
+          try {
+            if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) throw new Error('CLIPBOARD_UNAVAILABLE');
+            await navigator.clipboard.writeText(safeDiagnosticText);
+            copyStatus.textContent = '도움정보를 클립보드에 복사했습니다.';
+          } catch {
+            copyStatus.textContent = '클립보드에 복사하지 못했습니다. 브라우저 권한을 확인한 뒤 다시 누르세요.';
+          } finally {
+            copyButton.disabled = false;
           }
         });
         diagnosticsContainer.appendChild(copyButton);
@@ -495,8 +516,112 @@ export function createStudentView() {
       return root;
     },
     renderVulnerabilities() { return '학생 구현 대기: 정확한 설치 버전·OSV 출처·조회 시각·부분 결과·조회 실패를 구분하세요.'; },
-    renderAiConnection() { return '학생 구현 대기: 모델 응답 점검과 실제 사건 설명을 구분하고 AI 오류·취소·수동 복구를 안내하세요.'; },
-    renderExplanation() { return '학생 구현 대기: 선택한 사건의 근거·규칙·현재 상태와 AI 설명을 연결하세요. 제안은 자동 실행하지 않습니다.'; },
+    renderAiConnection({ status, mode, data, error, checkedAt } = {}) {
+      const root = document.createElement('section');
+      const addLine = (text) => {
+        const line = document.createElement('p');
+        line.textContent = text;
+        root.appendChild(line);
+      };
+      const safeDisplay = (value) => {
+        if (value === undefined || value === null || value === '') return '확인 불가';
+        if (!['string', 'number', 'boolean'].includes(typeof value)) return '확인 불가';
+        const text = String(value);
+        const containsSensitiveValue = /(?:bearer\s+\S+|-----BEGIN [A-Z ]*(?:PRIVATE KEY|CERTIFICATE)-----|(?:api[_ -]?key|authorization|password|passphrase|access[_ -]?token|refresh[_ -]?token|token|secret|credential|private[_ -]?key|비밀번호|토큰|열쇠)\s*[:=]\s*\S+|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|sk-(?:on-|proj-|ant-)?[A-Za-z0-9_-]{8,})/i;
+        if (text.length > 500 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(text) || containsSensitiveValue.test(text)) {
+          return '민감한 값이 포함될 수 있어 숨겼습니다';
+        }
+        return text;
+      };
+      const modeLabels = {
+        demo: '예제 자료',
+        disconnected: '연결 없음',
+        unknown: '확인 불가',
+      };
+      const errorCategories = {
+        ON_AI_PROVISIONING_PENDING: '권한 준비 중: 담당자에게 계정 연결과 앱 권한 확인을 요청하세요.',
+        ON_AI_AUTHORIZATION_CHANGED: '권한 준비 중: 담당자에게 계정 연결과 앱 권한 확인을 요청하세요.',
+        ON_AI_TRANSPORT_PENDING: '권한 준비 중: 담당자에게 계정 연결과 앱 권한 확인을 요청하세요.',
+        WB_CLCO_AUTH_REQUIRED: '인증 및 접근 제한: 계정 연결을 다시 확인하고 담당자에게 문의하세요.',
+        WB_CLCO_ACCESS_BLOCKED: '인증 및 접근 제한: 계정 연결을 다시 확인하고 담당자에게 문의하세요.',
+        WB_CLCO_INVALID_TOKEN: '인증 및 접근 제한: 계정 연결을 다시 확인하고 담당자에게 문의하세요.',
+        WB_CLCO_COHORT_BUDGET_EXHAUSTED: '사용량 및 이용 한도: 반의 AI 사용량과 한도를 담당자에게 확인하세요.',
+        WB_CLCO_LIMIT_REACHED: '사용량 및 이용 한도: 반의 AI 사용량과 한도를 담당자에게 확인하세요.',
+        WB_CLCO_SESSION_CLOSED: '이용 시간 외: 현재 AI 이용 가능 시간을 확인하세요.',
+        WB_CLCO_RATE_LIMITED: '요청 제한: 잠시 후 직접 다시 시도하세요.',
+        WB_CLCO_TIMEOUT: '시간 초과: AI 요청 시간이 초과되었습니다. 잠시 후 직접 다시 점검하세요.',
+        REQUEST_TIMEOUT: '시간 초과: AI 요청 시간이 초과되었습니다. 잠시 후 직접 다시 점검하세요.',
+        WB_CLCO_NETWORK_ERROR: '네트워크 오류: AI 서버 연결을 확인한 뒤 직접 다시 점검하세요.',
+        WB_CLCO_SERVER_UNAVAILABLE: '네트워크 오류: AI 서버 연결을 확인한 뒤 직접 다시 점검하세요.',
+        WB_CLCO_CANCELLED: '점검 취소됨: AI 연결 점검이 취소되었습니다. 이전 결과는 현재 결과가 아닙니다.',
+        CANCELLED: '점검 취소됨: AI 연결 점검이 취소되었습니다. 이전 결과는 현재 결과가 아닙니다.',
+        REQUEST_CANCELLED: '점검 취소됨: AI 연결 점검이 취소되었습니다. 이전 결과는 현재 결과가 아닙니다.',
+        ON_AI_MODEL_LIST_EMPTY: '사용 가능한 모델 없음: 담당자에게 허용 모델 설정을 확인하세요.',
+        MODEL_NOT_CONFIGURED: '사용 가능한 모델 없음: 담당자에게 허용 모델 설정을 확인하세요.',
+      };
+
+      if (status === 'idle') {
+        addLine('AI 연결 점검 전');
+        addLine('설정값 존재는 이용 권한 확인이 아닙니다.');
+      } else if (status === 'loading') {
+        addLine('AI 연결 점검 중...');
+      } else if (status === 'ok') {
+        const authorization = data?.audienceAuthorization;
+        const authorizationLabel = authorization === 'test'
+          ? '시험 연결 점검(test)'
+          : authorization === 'verified'
+            ? '앱 권한 확인 후 점검(verified)'
+            : '확인 불가';
+        const modelCount = Number.isFinite(data?.modelCount) && data.modelCount >= 0
+          ? String(data.modelCount)
+          : safeDisplay(data?.modelCount);
+        addLine(authorizationLabel);
+        addLine(`확인된 모델 수: ${modelCount}개`);
+        addLine(`점검 시각: ${safeDisplay(checkedAt ?? data?.checkedAt)}`);
+        addLine('사건 설명은 아직 실행하지 않았습니다. 모델 목록 응답은 실제 사건 설명의 성공이 아닙니다.');
+        addLine('자동으로 다시 점검하지 않습니다. 다시 점검은 사용자가 버튼을 직접 눌러야 합니다.');
+      } else if (status === 'error') {
+        const code = safeDisplay(error?.code);
+        const message = safeDisplay(error?.message);
+        addLine(`오류 코드: ${code}`);
+        addLine(`오류 메시지: ${message}`);
+        addLine(errorCategories[error?.code] ?? 'AI 연결을 확인할 수 없습니다. 잠시 후 다시 시도하세요.');
+        addLine('자동으로 다시 시도하지 않습니다. 다시 점검하려면 위쪽 점검 버튼을 직접 누르세요.');
+      } else {
+        addLine('AI 연결 확인 불가');
+      }
+
+      if (modeLabels[mode]) addLine(`동작 모드: ${modeLabels[mode]}`);
+      return root;
+    },
+    renderExplanation({ event, explanation, checkedAt } = {}) {
+      const root = document.createElement('section');
+      const addLine = (text) => {
+        const line = document.createElement('p');
+        line.textContent = text;
+        root.appendChild(line);
+      };
+
+      if (!event) {
+        addLine('보안 기록에서 기록을 먼저 고르세요.');
+      } else if (explanation?.status === 'ok') {
+        root.setAttribute('data-student-explanation-event', String(event.id));
+        addLine('AI 설명(참고용)');
+        addLine(`사건 ID: ${String(event.id)}`);
+        addLine(`설명: ${explanation.data?.summary ?? '확인 불가'}`);
+        addLine(`설명 확인 시각: ${checkedAt ?? explanation.data?.checkedAt ?? '확인 불가'}`);
+      } else if (explanation?.status === 'loading') {
+        addLine('AI 설명을 요청하는 중입니다...');
+      } else if (explanation?.status === 'error') {
+        const error = explanation.error ?? {};
+        addLine(`AI 설명 실패: ${error.code ?? '확인 불가'} - ${error.message ?? '확인 불가'}`);
+        addLine('기록은 그대로 유지됩니다.');
+      } else {
+        addLine('AI 설명을 확인할 수 없습니다.');
+      }
+
+      return root;
+    },
     renderAction() { return '학생 구현 대기: 현재 사건·조치·실제 대상·사람 확인·ACK와 원천 효과·unknown을 구분하세요.'; },
   };
 }
