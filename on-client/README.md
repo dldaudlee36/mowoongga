@@ -4,6 +4,13 @@
 
 이 시작 틀을 받은 것만으로 단계를 통과하지 않습니다. 단계마다 docs/STUDENT_PROMPTS.md의 안내를 수업용 AI에 붙여 넣어 student/extension.mjs를 고치고, 화면에서 확인하고, 커밋한 뒤 ALEPH에 제출합니다. 제출하면 서버가 그 커밋의 코드를 받아 AI가 단계 과제 기준으로 읽고 판정합니다. 코드를 실행해서 판정하지 않습니다.
 
+## 주요 구성 요소와 역할
+
+- **브라우저 (UI)**: `public/index.html`, `public/app.js`, `student/extension.mjs`. 직원이 사용하는 웹 화면이며 학생 확장 함수(`renderIdentity`부터 `renderVulnerabilities`까지 8개 함수)를 통해 신원·기기·세션, 업무 앱 접속 판정, 보안 기록, 알림, AI 연결, 설명, 조치, 취약점 정보를 표시합니다.
+- **앱 서버**: `src/server.mjs`. 로컬 HTTP 서버로 `ON_PORT`가 없으면 기본 포트 `5189`(`http://127.0.0.1:5189`)에서 실행되며 정적 파일 서빙 및 클라이언트와 백엔드 API 간의 중계를 담당합니다.
+- **기존 접속·XDR 서버 (SDP 엔진)**: `src/engine/sdp-host.mjs`, `src/actions/sdp-action-engine.mjs`. 사용자 접속 판정(허용·거부·추가 확인), XDR 보안 경보 저장, 조치 집행의 원천 시스템입니다.
+- **CLCO 수업용 AI 게이트웨이**: `src/ai/service.mjs`, `vendor/clco-http.mjs`. AI 연결 점검 및 사건 설명 요청을 중계하며, AI 공급사 원본 키를 안전하게 관리합니다.
+
 ## 켜기
 
 검수 환경은 Node.js 24.19.0이며 외부 npm 의존성이 없습니다. 이 폴더의 PowerShell에서 아래를 실행하고 PC 브라우저로 http://127.0.0.1:5189 를 엽니다. 자세한 켜기·끄기·다시 켜기는 docs/STUDENT_LAUNCH_GUIDE.md에 있습니다.
