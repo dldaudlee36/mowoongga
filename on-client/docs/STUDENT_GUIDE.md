@@ -4,13 +4,31 @@
 
 ## 1. 설치 및 실행 순서 (Run Instructions)
 
-새 PowerShell 창에서 그대로 따라 할 수 있도록 소스 코드(`src/server.mjs`, `package.json`, `README.md`)와 도구 설정에 맞추어 검증된 명령을 기록합니다.
+새 PowerShell 창에서 그대로 따라 할 수 있도록 소스 코드(`src/server.mjs`, `package.json`, `README.md`)와 도구 설정에 맞추어 검증된 명령을 기록합니다. 특정 개인 PC의 절대 경로를 고정하지 않고 상대 경로(`on-client`) 또는 환경 변수 기준으로 작성되었습니다.
+
+### 1.1 새 환경(클린 폴더) 설치 및 준비 절차
+새로운 PC 또는 빈 폴더에서 프로젝트를 시작할 때 아래 절차를 차례대로 실행합니다.
+
+```powershell
+# 1. 새 빈 폴더 생성 및 이동
+mkdir C:\temp\mowoongga-clean
+cd C:\temp\mowoongga-clean
+
+# 2. 저장소 복제 (Git Clone)
+git clone https://github.com/dldaudlee36/Fightvac.git .
+
+# 3. 앱 폴더로 이동
+cd on-client
+```
+
+### 1.2 실행 및 검사 명령
 
 1. **학생 코드 구문 검사 (실행 확인 완료)**:
    ```powershell
-   cd "C:\Users\User\AppData\Local\ALEPH\Workbench\projects\Fightvac-방어전\on-client"
+   cd on-client
    npm run check
    ```
+   - 저장소 루트에서 앱 폴더(`on-client`)로 이동한 뒤 실행합니다. (이미 `on-client` 폴더인 경우 `npm run check`만 실행)
    - `node --check student/extension.mjs`를 실행하여 학생 구현 코드의 문법 오류가 없음을 현재 커밋에서 확인했습니다.
 
 2. **예제(데모) 서버 실행 (실행 확인 완료)**:
@@ -139,5 +157,76 @@ UNV는 실제 원천 서버 또는 외부 서비스 연동 증거가 없어 확�
 - **원천 조치 집행 및 실제 효과:** 렌더러는 상태를 표시할 뿐이며, `supportedActions`가 비어 있어 실제 조치 요청·원천 서버 집행·효과 관측(`effectApplied: true`)은 미완료(UNV) 상태입니다.
 - **외부 호스트 설정 연동 명령:** `-NativeHostConfig`, `-SdpHostConfig` 옵션을 통한 실제 호스트 실행은 외부 설정 파일 미제공 상태이므로 확인 필요(미확인)입니다.
 - **취약점 조회 외부 통신:** 허용된 공개 패키지 외의 비공개 패키지는 외부로 전송되지 않으며, 실시간 OSV 대량 조회는 미확인(UNV)입니다.
+
+## 6. 데이터 백업 및 복원 계획 (Data Preservation Plan)
+
+단순한 Git 커밋 외에도 환경 손상이나 비정상 종료로부터 학생 데이터와 학습 성과를 온전히 보존하기 위한 구체적인 계획입니다.
+
+### 6.1 보존할 데이터와 위치
+- **학생 구현 소스:** `student/extension.mjs` (학생이 13~20단계에 걸쳐 구현한 8개 필수 렌더러 함수)
+- **학생 작성 문서:** `docs/STUDENT_GUIDE.md`, `docs/NEW_ENVIRONMENT_RUN_LOG.md`
+- **로컬 설정 파일:** `.env` (존재할 경우 로컬 환경 설정 보존, 비밀값 제외)
+- *(구분)* 제공 코드(`src/**`, `public/**`, `tools/**`, `package.json` 등)는 Git 저장소 및 원본 스타터 패키지에서 즉시 재제공되므로 학생 데이터와 구분하여 관리합니다.
+
+### 6.2 백업 시점
+- 단계별 구현 완료 직후 및 Git 커밋 직전/직후
+- 새 빈 폴더에서의 복제(clone) 및 재현 시험 수행 전
+- 운영 측의 스타터 패키지 업데이트 또는 제공 파일 갱신 안내를 받기 전
+- 소스 코드 롤백이나 문제 해결을 시도하기 전
+
+### 6.3 안전한 백업 절차
+1. **Git 원격 저장소 백업**:
+   ```powershell
+   git add student/extension.mjs docs/STUDENT_GUIDE.md docs/NEW_ENVIRONMENT_RUN_LOG.md
+   git commit -m "Backup student code and documentation"
+   git push origin master
+   ```
+2. **로컬 안전 디렉터리 백업 (Git 외 별도 보존)**:
+   Git 저장소 손상이나 오작동에 대비해 외부 안전 폴더로 복사본을 보관합니다.
+   ```powershell
+   $backupDir = "$HOME\mowoongga-backup\$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+   New-Item -ItemType Directory -Path $backupDir -Force
+   Copy-Item -Path "student\extension.mjs" -Destination $backupDir -Force
+   Copy-Item -Path "docs\STUDENT_GUIDE.md", "docs\NEW_ENVIRONMENT_RUN_LOG.md" -Destination $backupDir -Force
+   if (Test-Path ".env") { Copy-Item -Path ".env" -Destination $backupDir -Force }
+   ```
+
+### 6.4 복원 절차
+작업 디렉터리가 손상되었거나 새 환경으로 전환할 경우:
+1. 새 빈 폴더를 준비하고 원격 저장소를 클론합니다:
+   ```powershell
+   git clone https://github.com/dldaudlee36/Fightvac.git <새_폴더>
+   cd <새_폴더>\on-client
+   ```
+2. Git 최신 커밋 상태를 확인하고, 필요한 경우 로컬 백업 폴더에서 학생 파일을 복사하여 복원합니다:
+   ```powershell
+   Copy-Item -Path "$backupDir\extension.mjs" -Destination "student\extension.mjs" -Force
+   Copy-Item -Path "$backupDir\*.md" -Destination "docs\" -Force
+   ```
+3. 복원 후 구문 검증 명령으로 무결성을 확인합니다:
+   ```powershell
+   npm run check
+   ```
+
+### 6.5 복구할 수 없는 범위 (복원 한계)
+아래의 일회성·휘발성 런타임 데이터는 백업 대상이 아니며 복원할 수 없습니다. 복원 후에는 필요 시 브라우저 화면에서 새롭게 발급·조회해야 합니다:
+- 만료된 세션 및 6자리 일회용 로그인 확인 번호
+- AI 앱 승인 확인 번호 및 유효기간이 지난 임시 승인 티켓
+- 조치 확인 티켓(`confirmationId`) 및 처리 중이던 일회성 서버 접수 티켓
+- 브라우저 인메모리(DOM) 임시 렌더링 상태
+- 만료되었거나 회수된 SDP 연결 토큰
+
+## 7. 지원 버전 범위 및 버전 차이 명시 (Version Scope Honest)
+
+문서와 설정 간의 버전 표기 차이를 솔직하고 명확하게 정리합니다:
+
+1. **Node.js 버전 범위**:
+   - `package.json`의 `"engines": { "node": "24.19.0" }`은 과제 공식 검수 환경의 단일 기준(LTS) 권장 버전입니다.
+   - 실행 스크립트(`tools/start-alekov.ps1`)와 문제 해결 가이드(`docs/CONNECTION_TROUBLESHOOT.md`, `docs/STUDENT_LAUNCH_GUIDE.md`)는 학생 로컬 환경을 위해 Node.js **22~24** 메이저 버전을 폭넓게 허용하고 정상 지원합니다.
+   - 현재 로컬 환경은 Node.js `v24.20.0`으로, 공식 권장 기준(24.19.0) 및 22~24 지원 범위 내에서 `npm run check` 및 `npm run demo`가 오류 없이 완벽히 동작함을 확인했습니다.
+
+2. **스타터 패키지 버전 차이**:
+   - `docs/FINAL_PRODUCT_GUIDE.md`의 제목에 적힌 `starter 0.2.9`는 과제 초기에 제공된 제공 문서의 기준 버전입니다.
+   - 실제 배포·구현에 사용되는 현재 프로젝트 버전은 `package.json` 및 `README.md`에 명시된 `0.2.11`이며, 스타터 0.2.9의 명세를 온전히 유지·확장한 정식 버전입니다.
 
 이 문서에는 비밀번호, 토큰, 키, 인증서 또는 기타 비밀 값을 넣지 않았습니다. 오류 화면이나 도움정보를 다른 사람에게 전달하기 전에 비밀 값이 섞이지 않았는지 직접 살펴보세요.
