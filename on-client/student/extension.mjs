@@ -732,6 +732,116 @@ export function createStudentView() {
       addLine('기록은 그대로입니다.');
       return root;
     },
-    renderAction() { return '학생 구현 대기: 현재 사건·조치·실제 대상·사람 확인·ACK와 원천 효과·unknown을 구분하세요.'; },
+    renderAction({ status, event, actionId, target, receipt, observation, message, confirmationExpiresAt, error } = {}) {
+      const root = document.createElement('section');
+      const addLine = (text) => {
+        const line = document.createElement('p');
+        line.textContent = text;
+        root.appendChild(line);
+      };
+      const hasValue = (value) => value !== undefined && value !== null && value !== '';
+      const safeDisplay = (value) => {
+        if (!hasValue(value)) return '확인 불가';
+        if (!['string', 'number', 'boolean'].includes(typeof value)) return '확인 불가';
+        const text = String(value);
+        const containsSensitiveValue = /(?:bearer\s+\S+|-----BEGIN [A-Z ]*(?:PRIVATE KEY|CERTIFICATE)-----|(?:api[_ -]?key|authorization|password|passphrase|access[_ -]?token|refresh[_ -]?token|token|secret|credential|private[_ -]?key|비밀번호|토큰|열쇠)\s*[:=]\s*\S+|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|sk-(?:on-|proj-|ant-)?[A-Za-z0-9_-]{8,})/i;
+        if (text.length > 500 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(text) || containsSensitiveValue.test(text)) {
+          return '민감한 값이 포함될 수 있어 숨겼습니다';
+        }
+        return text;
+      };
+
+      // 매 호출마다 새 요소만 구성하므로 이전 요청의 화면 데이터를 보관하지 않습니다.
+      if (hasValue(event?.id)) {
+        root.setAttribute('data-student-action-event', String(event.id));
+      }
+      if (hasValue(receipt?.requestId)) {
+        root.setAttribute('data-student-action-request', String(receipt.requestId));
+      }
+
+      const currentStatus = hasValue(status) ? status : 'idle';
+      if (currentStatus === 'idle') {
+        addLine('상태: 아직 미실행(idle)');
+        addLine('조치 준비 또는 집행이 실행되지 않았습니다.');
+      } else if (currentStatus === 'loading') {
+        addLine('상태: 처리 상태 확인 중(loading) · 결과 미확인');
+        addLine('요청 결과가 아직 확인되지 않았습니다.');
+      } else if (currentStatus === 'prepared') {
+        addLine('상태: 준비됨·미실행(prepared)');
+        addLine('조치가 준비되었으나 아직 실행되지 않았습니다. 사람 확인이 필요합니다.');
+        addLine(`사람 확인 기한(confirmationExpiresAt): ${safeDisplay(confirmationExpiresAt)}`);
+      } else if (currentStatus === 'executing') {
+        addLine('상태: 서버에 전달 중(executing)');
+        addLine('요청이 서버에 전달 중입니다. 결과는 아직 확인되지 않았습니다.');
+      } else if (currentStatus === 'pending') {
+        addLine('상태: 서버 접수·처리 중(pending)');
+        addLine('서버가 요청을 접수해 처리 중입니다. 결과는 아직 확인되지 않았습니다.');
+      } else if (currentStatus === 'succeeded') {
+        if (observation?.effectApplied === true) {
+          addLine('상태: 효과 확인(succeeded)');
+          addLine(`관측 시각: ${safeDisplay(observation.observedAt)}`);
+          addLine('effectApplied: true');
+        } else {
+          addLine('상태: 결과 불명(unknown) · 효과 없음으로 판단 금지 (입력 상태: succeeded)');
+          addLine('관측에서 effectApplied: true가 확인되지 않아 효과를 판단할 수 없습니다.');
+        }
+      } else if (currentStatus === 'denied') {
+        addLine('상태: 거절(denied)');
+        addLine('요청이 거절되었습니다.');
+      } else if (currentStatus === 'failed') {
+        addLine('상태: 실패(failed)');
+        addLine('요청 처리에 실패했습니다.');
+      } else if (currentStatus === 'unknown') {
+        addLine('상태: 결과 불명(unknown) · 효과 없음으로 판단 금지');
+        addLine('효과가 확인되지 않았습니다. 효과가 없다고 단정하지 마세요.');
+      } else if (currentStatus === 'expired') {
+        addLine('상태: 확인 기한 지남(expired) · 다시 준비');
+        addLine('확인 기한이 지났습니다. 다시 준비해야 합니다.');
+      } else if (currentStatus === 'error') {
+        addLine('상태: 요청 처리 안 됨(error)');
+        addLine(`오류 코드: ${safeDisplay(error?.code)}`);
+        addLine(`오류 메시지: ${safeDisplay(error?.message)}`);
+      } else {
+        addLine(`상태: 확인 불가 (${safeDisplay(currentStatus)})`);
+      }
+
+      // 진행 중이거나 미확정인 결과에 임의의 message를 덧붙여 성공으로 오해하게 하지 않습니다.
+      const mayShowMessage = ['prepared', 'denied', 'failed', 'expired'].includes(currentStatus)
+        || (currentStatus === 'succeeded' && observation?.effectApplied === true);
+      if (hasValue(message) && mayShowMessage) {
+        addLine(`안내: ${safeDisplay(message)}`);
+      }
+
+      if (hasValue(event?.id)) {
+        addLine(`사건 ID: ${safeDisplay(event.id)}`);
+      }
+      if (Array.isArray(event?.evidence)) {
+        const evidenceIds = event.evidence
+          .filter((evidence) => hasValue(evidence?.id))
+          .map((evidence) => safeDisplay(evidence.id));
+        if (evidenceIds.length > 0) addLine(`근거 ID: ${evidenceIds.join(', ')}`);
+      }
+      if (hasValue(actionId)) {
+        addLine(`조치 ID: ${safeDisplay(actionId)}`);
+      }
+      if (hasValue(target?.id)) {
+        addLine(`대상 ID: ${safeDisplay(target.id)}`);
+      }
+      if (hasValue(target?.generation)) {
+        addLine(`대상 세대: ${safeDisplay(target.generation)}`);
+      }
+      if (hasValue(receipt?.requestId)) {
+        addLine(`요청 ID: ${safeDisplay(receipt.requestId)}`);
+      }
+      if (hasValue(receipt?.receiptId)) {
+        addLine(`접수 ID: ${safeDisplay(receipt.receiptId)}`);
+      }
+      if (hasValue(receipt?.version)) {
+        addLine(`접수 버전: ${safeDisplay(receipt.version)}`);
+      }
+
+      addLine('조치 확인·실행은 제공 화면의 버튼을 사용하세요. 이 화면에는 실행 버튼이 없습니다.');
+      return root;
+    },
   };
 }
