@@ -61,6 +61,19 @@ if ($PSBoundParameters.ContainsKey('NativeHostConfig')) {
     }
   } catch { Stop-With 'NativeHostConfig 파일이나 상위 경로를 확인하지 못했습니다. 실제 일반 파일의 정규화된 절대 경로를 지정해 주세요.' }
   $nativeArgument = ' --native-host-config "' + $absoluteConfig + '"'
+} elseif (-not $Demo) {
+  # 실행 도구가 이 PC용 설정을 자동으로 준비합니다 (운영진 안내 일치)
+  $defaultHostRoot = Join-Path $env:LOCALAPPDATA 'ALEPH\AlekovHost'
+  $defaultConfig = Join-Path $defaultHostRoot 'native.json'
+  if (-not (Test-Path -LiteralPath $defaultConfig)) {
+    $prepareScript = Join-Path $PSScriptRoot 'prepare-native-host.ps1'
+    if (Test-Path -LiteralPath $prepareScript) {
+      try { & $prepareScript -ProjectRoot $root -HostRoot $defaultHostRoot -Create *>$null } catch {}
+    }
+  }
+  if (Test-Path -LiteralPath $defaultConfig) {
+    $nativeArgument = ' --native-host-config "' + $defaultConfig + '"'
+  }
 }
 
 # SDP 개인 자격은 별도 설정 파일로 선택한다. 이 도구는 파일 내용을 읽지 않는다.

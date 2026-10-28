@@ -1,4 +1,4 @@
-﻿# Private native-host protocol. No credential in arguments, environment or diagnostics.
+# Private native-host protocol. No credential in arguments, environment or diagnostics.
 # Use only modules supplied by this running PowerShell engine; preserve every ACL/identity check.
 $env:PSModulePath=[IO.Path]::Combine($PSHOME,'Modules')
 Set-StrictMode -Version Latest
@@ -138,7 +138,7 @@ public static class AlekovVaultNative {
     $acl.SetOwner($ownerSid); $acl.SetAccessRuleProtection($true,$false)
     if ($directory) { $rule = New-Object Security.AccessControl.FileSystemAccessRule($ownerSid,'FullControl','ContainerInherit, ObjectInherit','None','Allow') }
     else { $rule = New-Object Security.AccessControl.FileSystemAccessRule($ownerSid,'FullControl','Allow') }
-    $acl.AddAccessRule($rule); Set-Acl -LiteralPath $p -AclObject $acl
+    $acl.AddAccessRule($rule); if ($directory) { [IO.Directory]::SetAccessControl($p, $acl) } else { [IO.File]::SetAccessControl($p, $acl) }
     AssertAcl $p
   }
   function OpenOwned([string]$p) {

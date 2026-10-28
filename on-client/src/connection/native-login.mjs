@@ -65,8 +65,9 @@ export function createNativeLogin(options={}){
   const publicView=()=>Object.freeze({state:s.state,expiresAtMs:s.session?.expires??s.ticket?.expires??null,approvalUrl:s.ticket?.url??null,confirmation:s.ticket?.confirmation??null});
   const api=Object.freeze({
     async start(input={},call={}){nativeOwn(input,[]);const {signal}=nativeOwn(call,[],['signal']);nativeSignal(signal);if(!enabled||s.closed)throw nativeFault('DISABLED');
-      // 이전 verifier를 새 로그인에 사용하지 않는다. 미확정 원격 ticket은 자동 재발급하지 않는다.
-      if(s.ticket)throw nativeFault('BUSY');invalidate();s.state='starting';const g=s.generation,verifier=randomBytes(32).toString('base64url'),deviceId=randomUUID(),challenge=hash(verifier);
+      // 이전 verifier를 새 로그인에 사용하지 않는다. 미확정 원격 ticket은 자동 재발급하지 않는다(단 만료된 티켓은 정리).
+      if(s.ticket){if(s.ticket.expires&&time()>=s.ticket.expires)s.ticket=null;else throw nativeFault('BUSY');}
+      invalidate();s.state='starting';const g=s.generation,verifier=randomBytes(32).toString('base64url'),deviceId=randomUUID(),challenge=hash(verifier);
       s.ticket={deviceId,verifier,challenge,expires:null,url:null,confirmation:null};
       try{const r=await request('start',{deviceId,challenge},g,signal),d=nativeOwn(r.data,['deviceId','challenge','confirmation','approvalUrl','expiresAtMs','state']);
         const u=new URL(d.approvalUrl);if(d.deviceId!==deviceId||d.challenge!==challenge||d.state!=='pending'||typeof d.confirmation!=='string'||!/^\d{6}$/.test(d.confirmation)||!Number.isSafeInteger(d.expiresAtMs)||d.expiresAtMs<=time()||u.origin!==portal||u.pathname!=='/workbench.html'||u.hash||u.username||u.password||[...u.searchParams.keys()].join(',')!=='nativeLogin,device,challenge'||u.searchParams.get('nativeLogin')!=='alekov'||u.searchParams.get('device')!==deviceId||u.searchParams.get('challenge')!==challenge||u.href!==d.approvalUrl)throw nativeFault('RESPONSE_INVALID');
@@ -82,7 +83,7 @@ export function createNativeLogin(options={}){
     async current(input={},call={}){nativeOwn(input,[]);const {signal}=nativeOwn(call,[],['signal']);nativeSignal(signal);await refresh(s.generation,signal);return publicView();},
     status(input={}){nativeOwn(input,[]);if(!enabled||s.closed)throw nativeFault('DISABLED');return publicView();},
     async cancel(input={},call={}){nativeOwn(input,[]);const {signal}=nativeOwn(call,[],['signal']);nativeSignal(signal);const old=s.session,t=s.ticket;invalidate();s.state='cancelled';const g=s.generation;
-      try{await serializedCurrent(async()=>{active(g,signal);if(t)await request('cancel',{deviceId:t.deviceId,verifier:t.verifier},g,signal);else if(old){const n=await request('nonce',{handle:old.handle,verifier:old.verifier,action:'cancel'},g,signal);const d=nativeOwn(n.data,['nonce','expiresAtMs']);await request('cancel',{handle:old.handle,verifier:old.verifier,nonce:d.nonce},g,signal);}active(g,signal);s.ticket=null;});return publicView();}
+      try{await serializedCurrent(async()=>{try{active(g,signal);if(t)await request('cancel',{deviceId:t.deviceId,verifier:t.verifier},g,signal);else if(old){const n=await request('nonce',{handle:old.handle,verifier:old.verifier,action:'cancel'},g,signal);const d=nativeOwn(n.data,['nonce','expiresAtMs']);await request('cancel',{handle:old.handle,verifier:old.verifier,nonce:d.nonce},g,signal);}}finally{active(g,signal);s.ticket=null;}});return publicView();}
       catch(e){if(g===s.generation)s.state='unknown';throw e;}
     },
     close(){invalidate();s.closed=true;s.state='cancelled';s.ticket=null;}

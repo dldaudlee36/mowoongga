@@ -166,7 +166,10 @@ export function createAiConnectController({ transport = createFetchTransport(), 
     if (g !== generation) return state;
     if (!result.ok) { set({ phase: 'error', reason: result.error.code }); return state; }
     const d = result.data;
-    if (!exact(d, ['connectionId', 'approvalUrl', 'confirmation', 'expiresAt', 'state']) || d.state !== 'awaiting_approval' || !UUID.test(d.connectionId ?? '')
+    const expectedKeys = (isRecord(d) && Object.hasOwn(d, 'reason'))
+      ? ['connectionId', 'approvalUrl', 'confirmation', 'expiresAt', 'state', 'reason']
+      : ['connectionId', 'approvalUrl', 'confirmation', 'expiresAt', 'state'];
+    if (!exact(d, expectedKeys) || d.state !== 'awaiting_approval' || !UUID.test(d.connectionId ?? '')
       || !/^[0-9a-f]{4}-[0-9a-f]{4}$/.test(d.confirmation ?? '') || !iso(d.expiresAt) || !validApprovalUrl(d.approvalUrl, d.connectionId)) {
       set({ phase: 'error', reason: 'ALEKOV_CONNECT_RESPONSE_INVALID' });
       return state;

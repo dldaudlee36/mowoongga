@@ -5,7 +5,7 @@ import { normalizeScan, createVulnerabilitiesView } from '/vulnerabilities-view.
 
 const STUDENT_MODULE = '/student/extension.mjs';
 const STUDENT_PENDING = '학생 구현 대기';
-const REQUEST_TIMEOUT_MS = 10000;
+const REQUEST_TIMEOUT_MS = 30000;
 const UNVERIFIED_MESSAGE = '서버 응답 형식을 확인할 수 없습니다(확인 불가). 정상으로 간주하지 마세요.';
 
 const MODE_LABELS = {
@@ -435,6 +435,30 @@ function setupNav() {
       event.preventDefault();
       selectView(next.dataset.view, { focus: true });
     });
+  }
+
+  const sidebarToggle = $('sidebar-toggle');
+  const layout = document.querySelector('.layout');
+  if (sidebarToggle && layout) {
+    const toggleSidebar = () => {
+      const isCollapsed = layout.classList.toggle('collapsed');
+      sidebarToggle.setAttribute('aria-expanded', String(!isCollapsed));
+      sidebarToggle.title = isCollapsed ? '사이드바 메뉴 펼치기 (단축키: Alt + S)' : '사이드바 메뉴 접기 (단축키: Alt + S)';
+    };
+    sidebarToggle.addEventListener('click', toggleSidebar);
+    window.addEventListener('keydown', (event) => {
+      if (event.altKey && (event.key === 's' || event.key === 'S')) {
+        event.preventDefault();
+        toggleSidebar();
+      }
+    });
+    // 메뉴가 사라진 상태로 고정되지 않도록 기본 상태를 항상 메뉴 펼침(표시)으로 복원
+    layout.classList.remove('collapsed');
+    sidebarToggle.setAttribute('aria-expanded', 'true');
+    sidebarToggle.title = '사이드바 메뉴 접기 (단축키: Alt + S)';
+    try {
+      localStorage.removeItem('fightvac-sidebar-collapsed');
+    } catch (_) {}
   }
 }
 
@@ -1330,6 +1354,13 @@ async function loadAll() {
 
 function init() {
   setupNav();
+  const themeToggle = $('theme-toggle-pill');
+  if (themeToggle) {
+    themeToggle.addEventListener('click', () => {
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      document.documentElement.setAttribute('data-theme', isLight ? 'dark' : 'light');
+    });
+  }
   $('refresh').addEventListener('click', () => loadAll());
   $('diag-load').addEventListener('click', () => loadDiagnostics());
   $('diag-copy').addEventListener('click', () => copyDiagnostics());

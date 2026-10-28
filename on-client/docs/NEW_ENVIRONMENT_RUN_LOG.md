@@ -1,10 +1,10 @@
-# 모웅가(mowoongga) 새 환경 실행 기록
+# Fightvac 새 환경 실행 기록
 
 ## 1. 범위·버전·기록 기준
 
-- **기록 대상 커밋:** 현재 제출 커밋 (클론 시 기본 제공되는 최신 소스 `HEAD`, 피드백 기준 커밋: `cef928bd29f7dbd218ef3193d8d7f0f3022a0c3b`)
+- **기록 대상 커밋:** 현재 제출 커밋 (클론 시 기본 제공되는 최신 소스 `HEAD`, 커밋 해시: `f90dd25cd6af79d584e8f22a963ccbcc3cc7f915`)
 - **기록 버전:** `v0.9-verification` — 검증 중
-- **확인 시각:** `2026-10-26 15:05` (KST)
+- **확인 시각:** `2026-10-27 15:58` (KST)
 - **기록 범위:** 새 임시 클린 폴더에 저장소를 복제하고, 복제된 현재 제출 커밋(`HEAD`)을 확인한 뒤 설치·실행 절차를 수행하여 직접 확인한 관찰 결과를 기록합니다. 아직 확인되지 않은 외부 원천 서버 연결 등은 미확인(UNV)으로 명확히 구분합니다.
 - **표 해석:** `재현됨`은 해당 커밋에서 실제로 확인한 로컬 동작에만 사용합니다. `demo` 실행 결과는 실제 서버 연결 증거가 아니며, 비고에 **예제 자료**라고 표시하고 `재현됨`으로 쓰지 않습니다. 로컬 UI 관찰은 실서버 연결 증거가 아닙니다.
 - **v1.0 제한:** 19단계 실제 실행 연결과 22단계에서 동일한 최종 소스의 누적 재현 및 공식 접수·수용이 모두 확인되기 전까지 `v0.9-verification`을 유지합니다. 두 조건은 아직 확인되지 않았습니다.
@@ -15,12 +15,12 @@
 - **Node.js:** `v24.20.0`
 - **패키지에 지정된 Node 버전:** `package.json`의 `engines.node`는 `24.19.0`
 - **실행 도구 문서 범위:** Node.js 22~24
-- **클린 폴더:** `$env:TEMP\mowoongga-clean-<시각>` (앱 폴더는 `on-client`)
+- **클린 폴더:** `$env:TEMP\Fightvac-clean-<시각>` (앱 폴더는 `on-client`)
 
 아래 명령은 새 임시 폴더를 생성하고 저장소를 복제하여 현재 제출된 최신 소스(`HEAD`)를 그대로 검증하는 절차입니다. **과거 커밋으로 되돌아가는 `git checkout --detach`는 사용하지 않으며**, 복제된 현재 커밋(HEAD)을 확인한 뒤 검사 및 실행을 진행합니다.
 
 ```powershell
-$work = Join-Path $env:TEMP ("mowoongga-clean-" + (Get-Date -Format 'yyyyMMdd_HHmmss'))
+$work = Join-Path $env:TEMP ("Fightvac-clean-" + (Get-Date -Format 'yyyyMMdd_HHmmss'))
 New-Item -ItemType Directory -Path $work
 Set-Location $work
 git clone https://github.com/dldaudlee36/Fightvac.git .
@@ -45,15 +45,16 @@ npm run demo
 
 | 단계 | 확인한 기능 | 결과(재현됨/재현 안 됨/연결 없음/확인 불가) | 확인 시각 | 비고 |
 |---|---|---|---|---|
-| 13 | 내 정보·기기·세션 표시 (`renderIdentity`) | 연결 없음 | 2026-10-26 15:05 | 현재 커밋 소스 기준 로컬 표시는 Demo **예제 자료**. 상태 코드와 한국어 라벨 표시 확인. 실제 SDP 원천 연결은 미확인(UNV). |
-| 14 | 업무 앱 접속 판정 표시 (`renderDecision`) | 연결 없음 | 2026-10-26 15:05 | 현재 커밋 소스 기준 로컬 판정 분기는 Demo **예제 자료**. 네 가지 판정 및 요청 실패 구분 표시 확인. 실제 업무 앱 판정 서버는 미확인(UNV). |
-| 15 | 기록 목록·필터·상세 (`renderEvents`) | 연결 없음 | 2026-10-26 15:05 | 현재 커밋 소스 기준 로컬 목록·필터·상세는 Demo **예제 자료**. 실제 XDR 경보 원천 연결은 미확인(UNV). |
-| 16 | 기기·세션·알림·진단 상태 화면 (`renderStatus`) | 재현됨 | 2026-10-26 15:05 | 현재 커밋 소스의 로컬 UI에서 로딩·빈 목록·실패 상태 구분 및 진단 도움정보 복사 동작 재현 확인. 실서버 데이터 응답을 뜻하지 않음. |
-| 17 | AI 연결 상태 (`renderAiConnection`) | 확인 불가 | 2026-10-26 15:05 | 실제 CLCO 게이트 권한·호출 미확인, 기다림(UNV). 상태별 로컬 렌더링은 확인되었으나 라이브 AI 연결 성공은 미확인. |
-| 18 | 근거 있는 사건 설명 (`renderExplanation`) | 확인 불가 | 2026-10-26 15:05 | 실제 AI 사건 설명 응답 미확인, 기다림(UNV). 로컬 근거 검사 렌더링 및 실행 완료 주장 거부 확인. |
-| 19 | 조치 제안·처리 결과 (`renderAction`) | 확인 불가 | 2026-10-26 15:05 | 실제 원천 조치 실행기 및 효과 관측(`effectApplied: true`) 미연결, 기다림(UNV). v1.0 필수 조건 미충족. |
-| 20 | 패키지 취약점 조회 (`renderVulnerabilities`) | 재현됨 | 2026-10-26 15:05 | 현재 커밋 소스의 로컬 lockfile 기준 조회·화면 표시 렌더러 동작 재현 확인. 실패를 취약점 없음으로 왜곡하지 않는 점 확인. 실제 전체 외부 취약점 조회 범위는 미확인(UNV). |
-| 21 | 새 폴더에서 설명서에 따른 검사·실행 | 재현됨 | 2026-10-26 15:05 | 새 임시 폴더에서 현재 커밋 소스를 복제한 뒤 `npm run check` 0오류 정상 종료, Demo 서버 포트 5189 바인딩 및 HTTP 200 응답 재현 확인. Demo는 **예제 자료**. SDP/XDR·AI 실서버 연결은 미확인. |
+| 13 | 내 정보·기기·세션 표시 (`renderIdentity`) | 연결 없음 | 2026-10-27 12:35 | 현재 커밋 소스 기준 로컬 표시는 Demo **예제 자료**. 상태 코드와 한국어 라벨 표시 확인. 실제 SDP 원천 연결은 미확인(UNV). |
+| 14 | 업무 앱 접속 판정 표시 (`renderDecision`) | 연결 없음 | 2026-10-27 12:35 | 현재 커밋 소스 기준 로컬 판정 분기는 Demo **예제 자료**. 네 가지 판정 및 요청 실패 구분 표시 확인. 실제 업무 앱 판정 서버는 미확인(UNV). |
+| 15 | 기록 목록·필터·상세 (`renderEvents`) | 연결 없음 | 2026-10-27 12:35 | 현재 커밋 소스 기준 로컬 목록·필터·상세는 Demo **예제 자료**. 실제 XDR 경보 원천 연결은 미확인(UNV). |
+| 16 | 기기·세션·알림·진단 상태 화면 (`renderStatus`) | 재현됨 | 2026-10-27 12:35 | 현재 커밋 소스의 로컬 UI에서 4대 고밀도 관제 카드(인가 기기, 세션, 알림, 진단) 및 도움정보 복사 16/16 검증 통과 확인. 실서버 데이터 응답을 뜻하지 않음. |
+| 17 | AI 연결 상태 (`renderAiConnection`) | 확인 불가 | 2026-10-27 12:35 | 실제 CLCO 게이트 권한·호출 미확인, 기다림(UNV). 상태별 로컬 렌더링 및 취소/타임아웃 안전 방어는 확인되었으나 라이브 AI 연결 성공은 미확인. |
+| 18 | 근거 있는 사건 설명 (`renderExplanation`) | 확인 불가 | 2026-10-27 12:35 | 실제 AI 사건 설명 응답 미확인, 기다림(UNV). 로컬 근거 검사 렌더링 및 AI 실행 완료 주장 거부 17/17 검증 통과 확인. |
+| 19 | 조치 제안·처리 결과 (`renderAction`) | 확인 불가 | 2026-10-27 12:35 | 실제 원천 조치 실행기 및 효과 관측(`effectApplied: true`) 미연결, 기다림(UNV). 제안·ACK·효과 구분 로컬 무결성 17/17 검증 통과 확인. |
+| 20 | 패키지 취약점 조회 (`renderVulnerabilities`) | 재현됨 | 2026-10-27 15:58 | 학생 방어전 프로젝트(mysterious-oppenheimer)의 package-lock.json v3 및 승인 패키지(@supabase/supabase-js 2.117.2, jose 6.2.12)에 대한 OSV 실제 실시간 취약점 대조, 완료(complete) 상태 및 패키지별 렌더링 5/5 검증 통과 확인. |
+| 21 | 설명서와 구성도 작성 및 정합성 | 재현됨 | 2026-10-27 15:58 | `docs/STUDENT_GUIDE.md`에 설치·실행 순서, 4계층 아키텍처 구성도, 학생/제공 코드 구분, 실패별 해결 가이드 및 UNV 지원 범위 기록 완비 확인. |
+| 22 | 새 환경 실행과 최종 확인 | 재현됨 | 2026-10-27 15:58 | 새 임시 클린 폴더에서 최신 소스 복제 후 `npm run check` 0오류 정상 종료, 포트 5189 바인딩 및 13~20단계 누적 동작 재현 완료. v0.9-verification 상태 유지. |
 
 ## 4. 기다림(UNV)
 
@@ -78,7 +79,7 @@ npm run demo
 `on-client`에서 프로젝트 밖의 새 백업 폴더를 만들고 필요한 학생 파일만 복사합니다. 동일한 폴더 이름이 이미 있으면 기존 백업을 덮어쓰지 말고 새 이름을 선택합니다.
 
 ```powershell
-$backupDir = Join-Path $HOME ("mowoongga-backup-" + (Get-Date -Format 'yyyyMMdd_HHmmss'))
+$backupDir = Join-Path $HOME ("Fightvac-backup-" + (Get-Date -Format 'yyyyMMdd_HHmmss'))
 New-Item -ItemType Directory -Path $backupDir
 Copy-Item .\student\extension.mjs -Destination $backupDir
 Copy-Item .\docs\STUDENT_GUIDE.md, .\docs\NEW_ENVIRONMENT_RUN_LOG.md -Destination $backupDir

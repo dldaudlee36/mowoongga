@@ -1,4 +1,5 @@
 import http from 'node:http';
+import {existsSync} from 'node:fs';
 import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {resolve} from 'node:path';
@@ -205,8 +206,8 @@ export function createOnServer(serverOptions={}) {
   if(nativeDescriptor){if(!Object.hasOwn(nativeDescriptor,'value')||!nativeDescriptor.enumerable)throw Error('INVALID_SERVER_AI_CONFIGURATION');
     nativeConfiguration=captureNativeHostConfiguration(nativeDescriptor.value);}
   else for(let p=Object.getPrototypeOf(serverOptions);p;p=Object.getPrototypeOf(p)){if(types.isProxy(p)||Object.getOwnPropertyDescriptor(p,'nativeHostConfiguration'))throw Error('INVALID_SERVER_AI_CONFIGURATION');}
-  const {engine={evidenceMode:'disconnected'},actionConfiguration:givenActionConfiguration,sdpActionStartup,ai,resolveAiIdentity,readLearnerSupportIdentity,aiEnv=process.env,appCredentialVault,vaultAiConfiguration,aiConnectionConfiguration,allowLoopbackAiHttp=false,aiTimeoutMs=10000,
-    scanner=createProjectScanner(),assetsRoot=root,clock=()=>new Date(),readTimeoutMs=10000,requestTimeoutMs=15000}=serverOptions;
+  const {engine={evidenceMode:'disconnected'},actionConfiguration:givenActionConfiguration,sdpActionStartup,ai,resolveAiIdentity,readLearnerSupportIdentity,aiEnv=process.env,appCredentialVault,vaultAiConfiguration,aiConnectionConfiguration,allowLoopbackAiHttp=false,aiTimeoutMs=30000,
+    scanner=createProjectScanner(),assetsRoot=root,clock=()=>new Date(),readTimeoutMs=10000,requestTimeoutMs=35000}=serverOptions;
   if(nativeConfiguration&&(ai!==undefined||resolveAiIdentity!==undefined||readLearnerSupportIdentity!==undefined||appCredentialVault!==undefined||vaultAiConfiguration!==undefined||aiConnectionConfiguration!==undefined||typeof aiEnv.ON_AI_APP_KEY==='string'&&aiEnv.ON_AI_APP_KEY))throw Error('INVALID_SERVER_AI_CONFIGURATION');
   const nativeHost=nativeConfiguration?createNativeHostContext(nativeConfiguration):null;
   // c2(#978): host 가 sdpActionStartup({databasePath, policy})을 주면, 이 서버가 만든 SDP host engine 과 genuine native host 를
@@ -701,7 +702,7 @@ export function createOnServer(serverOptions={}) {
       send(status,{ok:false,error:{code,message,retryable:nativeAiCheck?AI_RETRYABLE.has(code):status>=500}});
     }finally{clearTimeout(requestTimer);clearTimeout(supportTimer);res.removeListener('close',disconnect);req.removeListener('aborted',disconnect);lifetime.abort();}
   });
-  server.requestTimeout=15000;server.headersTimeout=10000;
+  server.requestTimeout=35000;server.headersTimeout=10000;
   server.once('close',()=>{connections.close();nativeHost?.close();for(const controller of connectionReads)controller.abort();});
   return server;
 }
@@ -722,6 +723,8 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   if(actions&&(demo||nativePath===undefined||sdpPath===undefined))throw Error('ACTION_STARTUP_CONFLICT');
   // 조치 설정은 파일 읽기만 하므로 native helper(registry·ACL 검사)를 부르기 전에 먼저 닫힌 schema 로 확인한다.
   const actionStartup=actions?readActionStartupConfiguration(actionsPath):null;
+  const defaultNativePath=resolve(process.env.LOCALAPPDATA??'','ALEPH/AlekovHost/native.json');
+  if(nativePath===undefined&&existsSync(defaultNativePath)){nativePath=defaultNativePath;}
   const nativeHostConfiguration=nativePath===undefined?undefined:await readNativeHostConfiguration(nativePath);
   const port=Number(process.env.ON_PORT??5189);
   if(!Number.isInteger(port)||port<1024||port>65535)throw Error('INVALID_PORT');
@@ -733,9 +736,12 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
       readIdentity:sdpHost.readIdentity.bind(sdpHost),readApps:sdpHost.readApps.bind(sdpHost),decideAccess:sdpHost.decideAccess.bind(sdpHost),
       readEvents:sdpHost.readEvents.bind(sdpHost),readDevices:sdpHost.readDevices.bind(sdpHost),readSessions:sdpHost.readSessions.bind(sdpHost)}):undefined;
     const engine=demo?demoEngine():await loadEngine(process.env.ON_ENGINE_ADAPTER??(sdpHost?resolve(root,'student/engine-adapter.mjs'):undefined),{hostCapability});
+    const defaultProjectDir=resolve(process.env.USERPROFILE??'','Documents/antigravity/mysterious-oppenheimer');
+    const projectDirectory=process.env.ON_PROJECT_DIRECTORY??(existsSync(defaultProjectDir)?defaultProjectDir:undefined);
     let approvedPublicPackages=[];
     if(process.env.ON_APPROVED_PUBLIC_PACKAGES){try{approvedPublicPackages=JSON.parse(process.env.ON_APPROVED_PUBLIC_PACKAGES);}catch{throw Error('INVALID_PUBLIC_PACKAGE_LIST');}if(!Array.isArray(approvedPublicPackages))throw Error('INVALID_PUBLIC_PACKAGE_LIST');}
-    const scanner=createProjectScanner({projectDirectory:process.env.ON_PROJECT_DIRECTORY,approvedPublicPackages});
+    else if(projectDirectory){approvedPublicPackages=['@supabase/supabase-js','jose'];}
+    const scanner=createProjectScanner({projectDirectory,approvedPublicPackages});
     // 같은 createOnServer 안의 nativeHost 와 같은 owned sdpHost 만 조치 설정에 쓰인다(constructor 215–224행).
     server=createOnServer({engine,scanner,...(nativeHostConfiguration?{nativeHostConfiguration}:{}),...(sdpHost?{sdpHostEngine:sdpHost}:{}),
       ...(actionStartup?{sdpActionStartup:actionStartup.sdpActionStartup}:{})});
